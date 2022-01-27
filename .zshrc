@@ -127,50 +127,6 @@ if command -v pyenv 1>/dev/null 2>&1; then
   eval "$(pyenv init -)"
 fi
 
-# aliases and functions
-alias mgka="cd ~/prj/magic-kaito"
-alias mgkb="cd ~/prj/magic-kaito-b"
-alias mgkc="cd ~/prj/magic-kaito-c"
-alias mgkd="cd ~/prj/magic-kaito-d"
-alias act=". ./env/bin/activate"
-alias alarms="pbpaste > /tmp/$$.txt && ./bin/integration_alarms.sh /tmp/$$.txt"
-
-# make list of uuids from integrations alarms
-alarm_uuids() {
-  ./bin/fetch_creds.py -p `grep ^D ${1} | awk -F'/' '{print $6}' | sort | uniq`
-}
-
-# run (by id) the scraper headless and drop profile and log files in ~/tmp
-byid() {
-  BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tr '/' '-')
-  ./bin/fetch_creds.py -p ${1} | jq '.[]' | python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof scraper_runner.py -d 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
-}
-
-# run (by id) the scraper headless and drop profile and log files in ~/tmp
-byidh() {
-  BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tr '/' '-')
-  ./bin/fetch_creds.py -p ${1} | jq '.[]' | python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof scraper_runner.py -d --headed 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
-}
-
-# test a facility id to verify you get what you expect
-byidt() {
-  ./bin/fetch_creds.py -p ${1} | jq '.[]' 
-}
-
-# pull kaito logs for given UUID
-prdlogs() {
-  mkdir -p ./tmp/${1}
-  for i in $(kubectl -n screen-scrapers get pods | grep ${1} | cut -d ' ' -f 1); do
-    echo $i
-    kubectl -n screen-scrapers logs ${i} > ./tmp/${1}/${i}.log
-  done
-}
-
-# monitor docker stats for particular container
-mgkm() {
-    while true; do docker stats --no-stream | grep ${1} | awk '{ if(index($4, "GiB")) {gsub("GiB","",$4); print $4*1000} else {gsub("MiB","",$4); print $4}}' | awk -v date="$(date +%T)" '{print $0", "date}'; sleep 1; done > ${1}.csv
-}
-
 # magic kaito env vars
 export PYTHONDEVMODE=1
 
@@ -192,5 +148,5 @@ export PATH="/usr/local/sbin:$PATH"
 # source dev env vars
 source ~/prod.env
 
-# source aliases
+# source aliases and functions
 source ~/.zsh/aliases
