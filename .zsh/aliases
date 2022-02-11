@@ -43,3 +43,9 @@ mgkm() {
     while true; do docker stats --no-stream | grep ${1} | awk '{ if(index($4, "GiB")) {gsub("GiB","",$4); print $4*1000} else {gsub("MiB","",$4); print $4}}' | awk -v date="$(date +%T)" '{print $0", "date}'; sleep 1; done > ${1}.csv
 }
 
+alias byida="byid $(shuf -n1 ~/Downloads/aht_data_sources.csv)"
+alias byidm="byid $(shuf -n1 ~/Downloads/matrix_data_sources.csv)"
+alias byidn="byid $(shuf -n1 ~/Downloads/netsmart_data_sources.csv)"
+alias byidp="byid $(shuf -n1 ~/Downloads/pcc_data_sources.csv)"
+alias byids="byid $(shuf -n1 ~/Downloads/sigmacare_data_sources.csv)"
+alias byidw="byid $(shuf -n1 ~/Downloads/wellsky_data_sources.csv)"
