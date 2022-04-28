@@ -123,9 +123,6 @@ bindkey -v
 bindkey '^R' history-incremental-search-backward
 
 [[ /usr/local/bin/kubectl ]] && source <(kubectl completion zsh)
-if command -v pyenv 1>/dev/null 2>&1; then
-  eval "$(pyenv init -)"
-fi
 
 # magic kaito env vars
 export PYTHONDEVMODE=1
@@ -143,10 +140,14 @@ export BUILD_LIBRDKAFKA=0
 
 # add ghcup path
 export PATH="$HOME/.cabal/bin:/Users/evancarey/.ghcup/bin:$PATH"
-export PATH="/usr/local/sbin:$PATH"
+#export PATH="/usr/local/sbin:$PATH"
 
 # source dev env vars
 source ~/prod.env
 
 # source aliases and functions
 source ~/.zsh/aliases
+
+[ -f "/Users/evancarey/.ghcup/env" ] && source "/Users/evancarey/.ghcup/env" # ghcup-env
+
+eval "$(pyenv init -)"
