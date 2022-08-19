@@ -110,7 +110,7 @@ export NVM_DIR="$HOME/.nvm"
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # this isn't working ??
-export EDITOR=/usr/local/bin/vim
+export EDITOR=/usr/bin/vim
 export VISUAL=${EDITOR}
 
 HISTSIZE=99999
@@ -138,16 +138,18 @@ export BUILD_LIBRDKAFKA=0
 
 #export SSLKEYLOGFILE=~/.ssl-key.log
 
-# add ghcup path
-export PATH="$HOME/.cabal/bin:/Users/evancarey/.ghcup/bin:$PATH"
-#export PATH="/usr/local/sbin:$PATH"
-
 # source dev env vars
 source ~/prod.env
 
 # source aliases and functions
 source ~/.zsh/aliases
 
-[ -f "/Users/evancarey/.ghcup/env" ] && source "/Users/evancarey/.ghcup/env" # ghcup-env
+# add ghcup path
+export PATH="$HOME/.cabal/bin:/Users/evancarey/.ghcup/bin:$PATH"
+#export PATH="/usr/local/sbin:$PATH"
+
+#[ -f "/Users/evancarey/.ghcup/env" ] && source "/Users/evancarey/.ghcup/env" # ghcup-env
 
 eval "$(pyenv init -)"
+
+[ -f "/Users/evancarey/.ghcup/env" ] && source "/Users/evancarey/.ghcup/env" # ghcup-env
