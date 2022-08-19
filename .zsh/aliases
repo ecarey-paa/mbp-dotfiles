@@ -5,32 +5,47 @@ alias mgkb="cd ~/prj/magic-kaito-b"
 alias mgkc="cd ~/prj/magic-kaito-c"
 alias mgkd="cd ~/prj/magic-kaito-d"
 alias act=". .env/bin/activate"
-alias alarms="pbpaste > /tmp/$$.txt && ./bin/integration_alarms.sh /tmp/$$.txt"
+#alias alarms="pbpaste > /tmp/$$.txt && ./bin/integration_alarms.sh /tmp/$$.txt"
 alias kp="kubectl config use-context arn:aws:eks:us-east-1:926134298613:cluster/anna-prod"
 alias km="kubectl config use-context minikube"
 alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
 alias plog="~/bin/paste_to_log.sh ~/rpa-prod-logs/"
+alias failedjobs="kubectl get pods -n screen-scrapers --sort-by=.status.startTime --field-selector=status.phase=Failed"
+
+function sortjobs() {
+  ./bin/fetch_creds.py $(cat ${1}|cut -d'-' -f3-7|sort|uniq)|jq -r '.[]|{emrtype:."emr-type",uuid:."facility-uuid",url:.url,username:.username}|"\(.emrtype) \(.url) \(.username) \(.uuid) https://anna.paanalytics.com/config/facilities/\(.uuid)/integrations"'|sort|uniq -c
+}
+
+function alarms() {
+  sortjobs ${1} > sorted.txt
+  emrs=(aht matrix netsmart pcc sigmacare wellsky)
+  for i in $emrs; do
+    grep $i sorted.txt > $i-sorted.txt
+    echo $i: $(wc -l < $i-sorted.txt)
+  done
+}
+
+function fetch_creds() {
+  for arg; do
+    vault kv get -format json secret/dirt/${arg} | jq '.data'
+  done
+}
 
 # make list of uuids from integrations alarms
 function alarm_uuids() {
-  ./bin/fetch_creds.py -p `grep ^D ${1} | awk -F'/' '{print $6}' | sort | uniq`
+  fetch_creds `grep ^D ${1} | awk -F'/' '{print $6}' | sort | uniq`
 }
 
 # run (by id) the scraper headless and drop profile and log files in ~/tmp
 function byid() {
   BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tr '/' '-')
-  ./bin/fetch_creds.py -p ${1} | jq '.[]' | python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof scraper_runner.py -d 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
+  fetch_creds ${1} | jq '.' | python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof scraper_runner.py -d 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
 }
 
 # run (by id) the scraper headless and drop profile and log files in ~/tmp
 function byidh() {
   BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tr '/' '-')
-  ./bin/fetch_creds.py -p ${1} | jq '.[]' | python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof scraper_runner.py -d --headed 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
-}
-
-# test a facility id to verify you get what you expect
-function byidt() {
-  ./bin/fetch_creds.py -p ${1} | jq '.[]' 
+  fetch_creds ${1} | jq '.' | python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof scraper_runner.py -d --headed 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
 }
 
 # pull kaito logs for given UUID
@@ -39,6 +54,13 @@ function prdlogs() {
   for i in $(kubectl -n screen-scrapers get pods | grep ${1} | cut -d ' ' -f 1); do
     echo $i
     kubectl -n screen-scrapers logs ${i} > ./tmp/${i}.log
+  done
+}
+
+# pull kaito logs for list of UUIDs
+function setofprdlogs() {
+  for i in $@; do
+    prdlogs $i
   done
 }
 
@@ -53,3 +75,8 @@ function byidn() { byid $(shuf -n1 ~/Downloads/netsmart_data_sources.csv) }
 function byidp() { byid $(shuf -n1 ~/Downloads/pcc_data_sources.csv) }
 function byids() { byid $(shuf -n1 ~/Downloads/sigmacare_data_sources.csv) }
 function byidw() { byid $(shuf -n1 ~/Downloads/wellsky_data_sources.csv) }
+
+# convert downloaded base64 encoded file into pdf
+function topdf() {
+    cut -c29- ${1} | base64 --decode > ${1}.pdf
+}
