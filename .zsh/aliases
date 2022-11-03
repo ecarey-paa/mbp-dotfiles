@@ -10,42 +10,46 @@ alias kp="kubectl config use-context arn:aws:eks:us-east-1:926134298613:cluster/
 alias km="kubectl config use-context minikube"
 alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
 alias plog="~/bin/paste_to_log.sh ~/rpa-prod-logs/"
-alias failedjobs="kubectl get pods -n screen-scrapers --sort-by=.status.startTime --field-selector=status.phase=Failed"
+alias failedpods="kubectl get pods -n screen-scrapers --sort-by=.status.startTime --field-selector=status.phase=Failed"
+#alias alarms="sortuuids $(./bin/failed_integrations.sh -t12h) > tmp.txt && groupbyemr tmp.txt && wc -l *-sorted.txt"
 
-function sortjobs() {
-  ./bin/fetch_creds.py $(cat ${1}|cut -d'-' -f3-7|sort|uniq)|jq -r '.[]|{emrtype:."emr-type",uuid:."facility-uuid",url:.url,username:.username}|"\(.emrtype) \(.url) \(.username) \(.uuid) https://anna.paanalytics.com/config/facilities/\(.uuid)/integrations"'|sort|uniq -c
+function ranksorted() {
+  for i in `awk '{print $5}' ${1}-sorted.txt`; do grep ${i} ${2}; done | sort -nr -t, -k1
 }
 
-function alarms() {
-  sortjobs ${1} > sorted.txt
+function sortuuids() {
+  ./bin/fetch_creds.py|jq -r '.[]|{emrtype:."emr-type",uuid:."facility-uuid",url:.url,username:.username}|"\(.emrtype) \(.url) \(.username) \(.uuid) https://anna.paanalytics.com/config/facilities/\(.uuid)/integrations"'|sort|uniq
+}
+
+function sortpods() { sortuuids $(cat $@|cut -d'-' -f3-7|sort|uniq) }
+
+function groupbyemr() {
+  tmpf=$(mktemp)
+  cat > ${tmpf}
   emrs=(aht matrix netsmart pcc sigmacare wellsky)
   for i in $emrs; do
-    grep $i sorted.txt > $i-sorted.txt
-    echo $i: $(wc -l < $i-sorted.txt)
+    grep $i ${tmpf} > $i-sorted.txt
   done
+  rm ${tmpf}
 }
 
-function fetch_creds() {
-  for arg; do
-    vault kv get -format json secret/dirt/${arg} | jq '.data'
+function uuid2url() {echo "https://anna.paanalytics.com/config/facilities/"${1}"/integrations"}
+function uuids2urls() {
+  for i in $@; do
+    annaurl $i
   done
-}
-
-# make list of uuids from integrations alarms
-function alarm_uuids() {
-  fetch_creds `grep ^D ${1} | awk -F'/' '{print $6}' | sort | uniq`
 }
 
 # run (by id) the scraper headless and drop profile and log files in ~/tmp
 function byid() {
   BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tr '/' '-')
-  fetch_creds ${1} | jq '.' | python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof scraper_runner.py -d 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
+  VAULT_SECRET_PATH="dirt/${1}" python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof ./scraper_runner.py 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
 }
 
 # run (by id) the scraper headless and drop profile and log files in ~/tmp
 function byidh() {
   BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD | tr '/' '-')
-  fetch_creds ${1} | jq '.' | python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof scraper_runner.py -d --headed 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
+  VAULT_SECRET_PATH="dirt/${1}" python -m cProfile -o ~/tmp/${BRANCH_NAME}-${1}.prof ./scraper_runner.py --headed 2>&1 | tee ~/tmp/${BRANCH_NAME}-${1}.log
 }
 
 # pull kaito logs for given UUID
@@ -69,12 +73,18 @@ function mgkm() {
     while true; do docker stats --no-stream | grep ${1} | awk '{ if(index($4, "GiB")) {gsub("GiB","",$4); print $4*1000} else {gsub("MiB","",$4); print $4}}' | awk -v date="$(date +%T)" '{print $0", "date}'; sleep 1; done > ${1}.csv
 }
 
-function byida() { byid $(shuf -n1 ~/Downloads/aht_data_sources.csv) }
-function byidm() { byid $(shuf -n1 ~/Downloads/matrix_data_sources.csv) }
-function byidn() { byid $(shuf -n1 ~/Downloads/netsmart_data_sources.csv) }
-function byidp() { byid $(shuf -n1 ~/Downloads/pcc_data_sources.csv) }
-function byids() { byid $(shuf -n1 ~/Downloads/sigmacare_data_sources.csv) }
-function byidw() { byid $(shuf -n1 ~/Downloads/wellsky_data_sources.csv) }
+function byida() { byid $(./bin/fetch_uuids.py aht | shuf -n1) }
+function byidm() { byid $(./bin/fetch_uuids.py matrix | shuf -n1) }
+function byidn() { byid $(./bin/fetch_uuids.py netsmart | shuf -n1) }
+function byidp() { byid $(./bin/fetch_uuids.py pcc | shuf -n1) }
+function byids() { byid $(./bin/fetch_uuids.py sigmacare | shuf -n1) }
+function byidw() { byid $(./bin/fetch_uuids.py wellsky | shuf -n1) }
+function byidha() { byidh $(./bin/fetch_uuids.py aht | shuf -n1) }
+function byidhm() { byidh $(./bin/fetch_uuids.py matrix | shuf -n1) }
+function byidhn() { byidh $(./bin/fetch_uuids.py netsmart | shuf -n1) }
+function byidhp() { byidh $(./bin/fetch_uuids.py pcc | shuf -n1) }
+function byidhs() { byidh $(./bin/fetch_uuids.py sigmacare | shuf -n1) }
+function byidhw() { byidh $(./bin/fetch_uuids.py wellsky | shuf -n1) }
 
 # convert downloaded base64 encoded file into pdf
 function topdf() {
